@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MCQ Quiz - jQuery + API + Dropdown Comments</title>
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        html, body {
+            width: 100%;
+            min-height: 100vh;
+            margin: 0;
+            padding: 0;
+            overflow-x: hidden;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background: #333;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            padding: 10px 0;
+        }
+
+        /* Outer wrapper – card ko center + responsive width */
+        .quiz-wrapper {
+            width: 100%;
+            max-width: 420px; /* mobile card jaisa size */
+            padding: 0 10px;
+        }
+
+        .quiz-container {
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+            width: 100%;
+        }
+
+        .question {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            color: #333;
+        }
+        .options {
+            margin-bottom: 15px;
+        }
+        .option {
+            display: block;
+            padding: 12px;
+            margin: 8px 0;
+            background: #f8f9fa;
+            border: 2px solid #dee2e6;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 15px;
+        }
+        .option:hover {
+            background: #e9ecef;
+            border-color: #007bff;
+        }
+        .option.selected {
+            background: #007bff;
+            color: white;
+            border-color: #0056b3;
+        }
+        .option.correct {
+            background: #28a745;
+            color: white;
+            border-color: #1e7e34;
+        }
+        .option.incorrect {
+            background: #dc3545;
+            color: white;
+            border-color: #c82333;
+        }
+        .nav-buttons {
+            display: flex;
+            gap: 8px;
+            justify-content: space-between;
+            margin-top: 10px;
+        }
+        button {
+            padding: 10px 15px;
+            border: none;
+            border-radius: 8px;
+            font-size: 15px;
+            cursor: pointer;
+            transition: background 0.3s, box-shadow 0.3s, transform 0.2s;
+        }
+        .prev-btn {
+            background: #6c757d;
+            color: white;
+        }
+        .prev-btn:hover {
+            background: #5a6268;
+        }
+        .next-btn {
+            background: #007bff;
+            color: white;
+        }
+        .next-btn:hover {
+            background: #0056b3;
+        }
+        .next-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .score {
+            background: #28a745;
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            font-size: 18px;
+            margin-top: 15px;
+            display: none;
+        }
+        .counter {
+            background: #17a2b8;
+            color: white;
+            padding: 8px;
+            border-radius: 5px;
+            text-align: center;
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+        .loading {
+            text-align: center;
+            color: #007bff;
+            font-size: 16px;
+        }
+        .subject-info {
+            background: #e7f3ff;
+            padding: 8px;
+            border-radius: 5px;
+            margin-bottom: 10px;
+            font-size: 13px;
+            color: #0056b3;
+        }
+
+        /* EXPLANATION BOX */
+        .explanation-box {
+            display: none;
+            margin-top: 12px;
+            padding: 12px;
+            border-radius: 10px;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+        .explanation-correct {
+            background: #d4edda;
+            border: 2px solid #28a745;
+            color: #155724;
+        }
+        .explanation-wrong {
+            background: #f8d7da;
+            border: 2px solid #dc3545;
+            color: #721c24;
+        }
+        .explanation-icon {
+            font-size: 20px;
+            margin-bottom: 6px;
+        }
+
+        /* DROPDOWN COMMENT BOX */
+        #commentToggleBtn {
+            background: linear-gradient(45deg, #ffc107, #e0a800);
+            color: #333;
+            font-weight: bold;
+            border: 2px solid #ffc107;
+            margin-top: 10px;
+            padding: 8px 12px;
+            font-size: 14px;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.3s;
+            width: 100%;
+        }
+        #commentToggleBtn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 3px 10px rgba(255,193,7,0.4);
+        }
+        #commentSection {
+            display: none;
+            margin-top: 10px;
+            padding: 12px;
+            background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+            border-radius: 12px;
+            border: 2px solid #007bff;
+            box-shadow: 0 3px 10px rgba(0,123,255,0.1);
+        }
+        #commentInput {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #dee2e6;
+            border-radius: 10px;
+            font-size: 14px;
+            resize: vertical;
+            min-height: 70px;
+            font-family: inherit;
+            margin-bottom: 10px;
+        }
+        #commentInput:focus {
+            outline: none;
+            border-color: #007bff;
+            box-shadow: 0 0 10px rgba(0,123,255,0.3);
+        }
+        #saveCommentBtn {
+            background: linear-gradient(45deg, #28a745, #218838);
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            width: 100%;
+        }
+        #saveCommentBtn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        /* Small screens fine-tune */
+        @media (max-width: 480px) {
+            .question { font-size: 16px; }
+            .option { font-size: 14px; padding: 10px; }
+            .counter { font-size: 13px; }
+            .subject-info { font-size: 12px; }
+        }
+    </style>
+</head>
+<body>
+  <div class="quiz-wrapper">
+    <div class="quiz-container">
+        <div class="counter" id="counter">Loading Question 1...</div>
+        <div class="subject-info" id="subjectInfo" style="display:none;"></div>
+        <div class="question" id="question"></div>
+        <div class="options" id="options"></div>
+
+        <div id="explanationBox" class="explanation-box">
+            <div id="explanationIcon" class="explanation-icon"></div>
+            <div id="explanationText"></div>
+        </div>
+
+        <button id="commentToggleBtn" style="display:none;">💬 Comment Add करें (Optional)</button>
+
+        <div id="commentSection">
+            <label style="display:block; font-weight:bold; margin-bottom:8px; color:#333; font-size:14px;">💬 आपका Comment:</label>
+            <textarea id="commentInput" placeholder="इस प्रश्न के बारे में अपनी राय लिखें... (Optional)"></textarea>
+            <button id="saveCommentBtn">💾 Comment Save करें</button>
+        </div>
+
+        <div class="nav-buttons">
+            <button class="prev-btn" id="prevBtn">Previous</button>
+            <button class="next-btn" id="nextBtn">Next Question</button>
+        </div>
+        <div class="score" id="score"></div>
+        <div id="loading" class="loading">API se question load ho raha hai...</div>
+    </div>
+  </div>
+
+<script>
+    let allQuestions = [];
+    let currentQuestion = 0;
+    let score = 0;
+    let answered = [];      // selected option index
+    let locked = [];        // is question ka answer lock ho chuka?
+
+    $(document).ready(function () {
+        loadAllQuestions();
+
+        $("#prevBtn").click(function () {
+            $("#explanationBox, #commentToggleBtn, #commentSection").hide();
+            if (currentQuestion > 0) {
+                currentQuestion--;
+                loadCurrentQuestion();
+            }
+        });
+
+        $("#nextBtn").click(function () {
+            if (!locked[currentQuestion]) {
+                checkAnswer();           // pehli baar score add
+                locked[currentQuestion] = true;
+            }
+            if (currentQuestion < allQuestions.length - 1) {
+                currentQuestion++;
+                loadCurrentQuestion();
+            } else {
+                showResult();
+            }
+        });
+
+        $(document).on('click', '#commentToggleBtn', function() {
+            $("#commentSection").slideToggle(200);
+            $(this).text($(this).text().includes('Hide')
+                ? '💬 Comment Add करें (Optional)'
+                : '🙈 Comment Hide करें');
+        });
+    });
+
+    function loadAllQuestions() {
+        $("#loading").show();
+        $.get('/api/questions?limit=20')
+            .done(function (data) {
+                allQuestions = data;
+                $("#loading").hide();
+                $("#counter").html(`Question <span id="current">1</span> / ${allQuestions.length}`);
+                loadCurrentQuestion();
+            })
+            .fail(function () {
+                $("#loading").html("❌ API Error - Sample questions loading...");
+                loadSampleQuestion();
+            });
+    }
+
+    function loadCurrentQuestion() {
+        const q = allQuestions[currentQuestion];
+        if (!q) return;
+
+        $("#subjectInfo").show().html(`📚 ${q.subject} | ${q.topic} | ${q.difficulty}`);
+        $("#question").html(`${currentQuestion + 1}. ${q.question_text}`);
+        $("#options").empty();
+        $("#explanationBox").hide();
+        $("#commentToggleBtn, #commentSection").hide();
+
+        const correctIndex = q.options.findIndex(opt => opt.is_correct);
+        const userAnswer  = answered[currentQuestion];
+        const isLocked    = !!locked[currentQuestion];
+
+        q.options.forEach((option, index) => {
+            let optionClass = "option";
+
+            if (userAnswer !== undefined) {
+                if (index === correctIndex) {
+                    optionClass += " correct";
+                } else if (index === userAnswer && userAnswer !== correctIndex) {
+                    optionClass += " incorrect";
+                }
+            }
+            if (userAnswer === index) {
+                optionClass += " selected";
+            }
+            // agar lock ho चुका hai toh cursor/hover disable jaisa feel
+            if (isLocked) {
+                optionClass += " disabled";
+            }
+
+            $("#options").append(
+                `<div class="${optionClass}" data-index="${index}">
+                    ${String.fromCharCode(65 + index)}. ${option.text}
+                 </div>`
+            );
+        });
+
+        // ✅ sirf tab click allow karo jab question lock nahi hai
+        if (!isLocked) {
+            $(".option").off('click').click(function () {
+                const index = $(this).data('index');
+                answered[currentQuestion] = index;
+
+                // pehli click par hi score + lock
+                if (!locked[currentQuestion]) {
+                    checkAnswer();
+                    locked[currentQuestion] = true;
+                }
+
+                loadCurrentQuestion();   // UI refresh (green/red etc.)
+            });
+        } else {
+            $(".option").off('click');   // locked → koi click nahi
+        }
+
+        // Answer hone ke baad hi explanation + comment
+        if (userAnswer !== undefined) {
+            showExplanation(q, userAnswer === correctIndex);
+            $("#commentToggleBtn").show();
+
+            const questionId  = q._id;
+            const userComment = q.comments?.find(c => c.user_id === 'guest') || {};
+            $("#commentInput").val(userComment.text || '');
+
+            $("#saveCommentBtn").off('click').click(function() {
+                const commentText = $("#commentInput").val().trim();
+                if (!commentText) return alert('❌ Comment खाली नहीं हो सकता!');
+                $(this).prop('disabled', true).text('Saving...');
+                $.ajax({
+                    url: `/api/questions/${questionId}/comment`,
+                    method: 'PUT',
+                    contentType: 'application/json',
+                    data: JSON.stringify({ comment: commentText, user_id: 'guest' }),
+                    success: function(result) {
+                        alert(result.message || '✅ Comment saved successfully!');
+                        loadAllQuestions();
+                    },
+                    error: function() {
+                        alert('❌ Failed to save comment!');
+                    },
+                    complete: function() {
+                        $("#saveCommentBtn").prop('disabled', false).text('💾 Comment Save करें');
+                    }
+                });
+            });
+        }
+
+        updateButtons();
+        updateCounter();
+    }
+
+    function showExplanation(question, isCorrect) {
+        const explanation = question.explanation || "कोई स्पष्टीकरण उपलब्ध नहीं है।";
+        $("#explanationIcon").html(isCorrect ? "✅ सही जवाब!" : "❌ गलत जवाब!");
+        $("#explanationText").html(explanation);
+        $("#explanationBox")
+            .removeClass("explanation-correct explanation-wrong")
+            .addClass(isCorrect ? "explanation-correct" : "explanation-wrong")
+            .show();
+    }
+
+    // score sirf pehli baar add hoga (locked array control karega)
+    function checkAnswer() {
+        const userAnswer = answered[currentQuestion];
+        if (userAnswer === undefined) return;
+
+        const correctIndex = allQuestions[currentQuestion].options.findIndex(opt => opt.is_correct);
+        if (userAnswer === correctIndex && !locked[currentQuestion]) {
+            score++;
+        }
+    }
+
+    function updateCounter() {
+        $("#current").text(currentQuestion + 1);
+        $("#total").text(allQuestions.length);
+    }
+
+    function updateButtons() {
+        $("#prevBtn").prop('disabled', currentQuestion === 0);
+        $("#nextBtn").prop('disabled', answered[currentQuestion] === undefined);
+    }
+
+    function showResult() {
+        $("#question, #options, .nav-buttons, #counter, #subjectInfo, #explanationBox, #commentToggleBtn, #commentSection").hide();
+        $("#score").show().html(
+            `Quiz Complete! Score: ${score}/${allQuestions.length} (${allQuestions.length ? Math.round((score / allQuestions.length) * 100) : 0}%)`
+        );
+    }
+
+    function loadSampleQuestion() {
+        allQuestions = [{
+            _id: "test123",
+            question_text: "API Error - Test question",
+            subject: "Test",
+            topic: "Test",
+            difficulty: "easy",
+            options: [
+                { text: "Working", is_correct: true },
+                { text: "Not Working", is_correct: false },
+                { text: "Maybe", is_correct: false },
+                { text: "Don't Know", is_correct: false }
+            ],
+            explanation: "यह एक टेस्ट प्रश्न है।",
+            comments: []
+        }];
+        loadCurrentQuestion();
+    }
+</script>
+
+</body>
+</html>
