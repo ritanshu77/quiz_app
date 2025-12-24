@@ -168,7 +168,7 @@ app.get('/api/questions', async (req, res) => {
         const questions = await Question.aggregate([
             { $match: filter },
             { $sort: { created_at: -1 } },      // 🔥 latest first
-            { $limit: maxLimit }                // 🔥 limit after sort
+            // { $limit: maxLimit }                // 🔥 limit after sort
         ]);
 
         // console.log("------questionsL---------", questions.length);
