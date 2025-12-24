@@ -6,9 +6,7 @@
     <title>MCQ Quiz - jQuery + API + Dropdown Comments</title>
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
     <style>
-        * {
-            box-sizing: border-box;
-        }
+        * { box-sizing: border-box; }
 
         html, body {
             width: 100%;
@@ -27,40 +25,40 @@
             padding: 10px 0;
         }
 
-        /* Outer wrapper – card ko center + responsive width */
+        /* Outer wrapper – center + responsive width */
         .quiz-wrapper {
             width: 100%;
-            max-width: 420px; /* mobile card jaisa size */
-            padding: 0 10px;
+            max-width: 720px; /* 🔥 laptop pe wider card */
+            padding: 0 20px;
         }
 
         .quiz-container {
             background: white;
-            padding: 20px;
-            border-radius: 15px;
+            padding: 28px;
+            border-radius: 16px;
             box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
             width: 100%;
         }
 
         .question {
-            font-size: 18px;
+            font-size: 20px;
             font-weight: bold;
-            margin-bottom: 15px;
+            margin-bottom: 18px;
             color: #333;
         }
         .options {
-            margin-bottom: 15px;
+            margin-bottom: 18px;
         }
         .option {
             display: block;
-            padding: 12px;
+            padding: 14px;
             margin: 8px 0;
             background: #f8f9fa;
             border: 2px solid #dee2e6;
             border-radius: 8px;
             cursor: pointer;
             transition: all 0.3s;
-            font-size: 15px;
+            font-size: 16px;
         }
         .option:hover {
             background: #e9ecef;
@@ -81,6 +79,7 @@
             color: white;
             border-color: #c82333;
         }
+
         .nav-buttons {
             display: flex;
             gap: 8px;
@@ -130,7 +129,7 @@
             border-radius: 5px;
             text-align: center;
             margin-bottom: 10px;
-            font-size: 14px;
+            font-size: 15px;
         }
         .loading {
             text-align: center;
@@ -142,7 +141,7 @@
             padding: 8px;
             border-radius: 5px;
             margin-bottom: 10px;
-            font-size: 13px;
+            font-size: 14px;
             color: #0056b3;
         }
 
@@ -152,7 +151,7 @@
             margin-top: 12px;
             padding: 12px;
             border-radius: 10px;
-            font-size: 14px;
+            font-size: 15px;
             line-height: 1.5;
         }
         .explanation-correct {
@@ -178,7 +177,7 @@
             border: 2px solid #ffc107;
             margin-top: 10px;
             padding: 8px 12px;
-            font-size: 14px;
+            font-size: 15px;
             border-radius: 20px;
             cursor: pointer;
             transition: all 0.3s;
@@ -202,7 +201,7 @@
             padding: 10px;
             border: 2px solid #dee2e6;
             border-radius: 10px;
-            font-size: 14px;
+            font-size: 15px;
             resize: vertical;
             min-height: 70px;
             font-family: inherit;
@@ -220,7 +219,7 @@
             padding: 10px 15px;
             border-radius: 20px;
             cursor: pointer;
-            font-size: 14px;
+            font-size: 15px;
             font-weight: bold;
             width: 100%;
         }
@@ -231,6 +230,13 @@
 
         /* Small screens fine-tune */
         @media (max-width: 480px) {
+            .quiz-wrapper {
+                max-width: 100%;
+                padding: 0 10px;
+            }
+            .quiz-container {
+                padding: 18px;
+            }
             .question { font-size: 16px; }
             .option { font-size: 14px; padding: 10px; }
             .counter { font-size: 13px; }
@@ -349,7 +355,6 @@
             if (userAnswer === index) {
                 optionClass += " selected";
             }
-            // agar lock ho चुका hai toh cursor/hover disable jaisa feel
             if (isLocked) {
                 optionClass += " disabled";
             }
@@ -361,25 +366,22 @@
             );
         });
 
-        // ✅ sirf tab click allow karo jab question lock nahi hai
         if (!isLocked) {
             $(".option").off('click').click(function () {
                 const index = $(this).data('index');
                 answered[currentQuestion] = index;
 
-                // pehli click par hi score + lock
                 if (!locked[currentQuestion]) {
                     checkAnswer();
                     locked[currentQuestion] = true;
                 }
 
-                loadCurrentQuestion();   // UI refresh (green/red etc.)
+                loadCurrentQuestion();
             });
         } else {
-            $(".option").off('click');   // locked → koi click nahi
+            $(".option").off('click');
         }
 
-        // Answer hone ke baad hi explanation + comment
         if (userAnswer !== undefined) {
             showExplanation(q, userAnswer === correctIndex);
             $("#commentToggleBtn").show();
@@ -425,7 +427,6 @@
             .show();
     }
 
-    // score sirf pehli baar add hoga (locked array control karega)
     function checkAnswer() {
         const userAnswer = answered[currentQuestion];
         if (userAnswer === undefined) return;
@@ -472,6 +473,5 @@
         loadCurrentQuestion();
     }
 </script>
-
 </body>
 </html>

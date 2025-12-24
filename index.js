@@ -13,7 +13,9 @@ app.use(express.json());
 app.use(express.static('public')); // Frontend files serve karne ke liye
 
 // MongoDB Connection
-mongoose.connect('mongodb://localhost:27017/mcq_quiz', {
+//mongodb+srv://ritanshu77:ritanshu77@cluster0.ki7lbh0.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0
+mongoose.connect('mongodb+srv://ritanshu77:ritanshu77@cluster0.ki7lbh0.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0', {
+    dbName: "mcq_quiz"
     // useNewUrlParser: true,
     // useUnifiedTopology: true
 }).then(() => {
@@ -39,6 +41,7 @@ const questionSchema = new mongoose.Schema({
         created_at: { type: Date, default: Date.now },
         updated_at: { type: Date, default: Date.now }
     }],
+    is_ruf: { type: Boolean, default: true },
     created_at: { type: Date, default: Date.now }
 });
 
@@ -102,71 +105,80 @@ async function seedData() {
 // API Routes
 // 🔥 Comment add/update API
 app.put('/api/questions/:id/comment', async (req, res) => {
-  try {
-    const { id } = req.params;                 // URL se questionId
-    const { comment, user_id = 'guest' } = req.body;  // body se comment text
-    console.log("----id--------",id)
-    if (!comment || !comment.trim()) {
-      return res.status(400).json({ error: 'Comment required' });
+    try {
+        const { id } = req.params;                 // URL se questionId
+        const { comment, user_id = 'guest' } = req.body;  // body se comment text
+        console.log("----id--------", id)
+        if (!comment || !comment.trim()) {
+            return res.status(400).json({ error: 'Comment required' });
+        }
+
+        const question = await Question.findById(id);
+        if (!question) {
+            return res.status(404).json({ error: 'Question not found' });
+        }
+
+        // Agar same user ka comment pehle se hai to update, warna push
+        if (!question.comments) question.comments = [];
+        const existing = question.comments.find(c => c.user_id === user_id);
+        console.log("-----existing-----", existing)
+        if (existing) {
+            existing.text = comment;
+            existing.updated_at = new Date();
+        } else {
+            question.comments.push({
+                user_id,
+                text: comment,
+                created_at: new Date(),
+                updated_at: new Date()
+            });
+        }
+
+        await question.save().then(() => {
+            console.log("----q save--")
+        }).catch(error => console.log("---error---", error));
+        res.json({ success: true, message: 'Comment saved successfully!' });
+
+    } catch (err) {
+        console.error('Comment API error:', err);
+        res.status(500).json({ error: 'Server error' });
     }
-
-    const question = await Question.findById(id);
-    if (!question) {
-      return res.status(404).json({ error: 'Question not found' });
-    }
-
-    // Agar same user ka comment pehle se hai to update, warna push
-    if (!question.comments) question.comments = [];
-    const existing = question.comments.find(c => c.user_id === user_id);
-    console.log("-----existing-----",existing)
-    if (existing) {
-      existing.text = comment;
-      existing.updated_at = new Date();
-    } else {
-      question.comments.push({
-        user_id,
-        text: comment,
-        created_at: new Date(),
-        updated_at: new Date()
-      });
-    }
-
-    await question.save().then(()=>{
-        console.log("----q save--")
-    }).catch(error=>console.log("---error---",error));
-    res.json({ success: true, message: 'Comment saved successfully!' });
-
-  } catch (err) {
-    console.error('Comment API error:', err);
-    res.status(500).json({ error: 'Server error' });
-  }
 });
 
 // 1. GET Random Questions by Subject
 app.get('/api/questions', async (req, res) => {
     try {
-        console.log("--req.query========", req.query)
+        console.log("--req.query========", req.query);
+
         const { subject, topic, limit = 20, difficulty } = req.query;
         const filter = {};
 
         if (subject) filter.subject = subject;
         if (topic) filter.topic = topic;
         if (difficulty) filter.difficulty = difficulty;
-        console.log("-----agg---", [
-            { $match: filter },
-            { $sample: { size: parseInt(limit) } }
-        ])
+
+        const maxLimit = Math.min(parseInt(limit) || 20, 100); // safety
+
+        // console.log("-----agg---", [
+        //   { $match: filter },
+        //   { $sort: { created_at: -1 } },
+        //   { $limit: maxLimit }
+        // ]);
+
         const questions = await Question.aggregate([
             { $match: filter },
-            { $limit: parseInt(limit) },
-            { $sample: { size: parseInt(limit) } }
+            { $sort: { created_at: -1 } },      // 🔥 latest first
+            { $limit: maxLimit }                // 🔥 limit after sort
         ]);
-        console.log("------questionsL---------", questions.length)
+
+        // console.log("------questionsL---------", questions.length);
         res.json(questions);
     } catch (error) {
+        console.error('GET /api/questions error:', error);
         res.status(500).json({ error: error.message });
     }
 });
+
 
 // 2. POST Submit Answer & Get Feedback
 app.post('/api/answers', async (req, res) => {
@@ -237,29 +249,53 @@ app.get('/', (req, res) => {
 // 5 
 app.post('/api/questions', async (req, res) => {
     try {
-        const questionsData = req.body;
+        // 🔥 default true
+        let is_ruf = true;
 
-        let result;
+        // agar header bheja hai to usko override karo
+        if (req.headers.is_ruf !== undefined) {
+            // "true"/"false"/true/false ko string bana ke compare
+            is_ruf = String(req.headers.is_ruf).toLowerCase() === 'true';
+        }
+
+        const questionsData = req.body;
+        let result = [];
+
+        async function upsertOne(q) {
+            q.is_ruf = is_ruf;  // document me bhi flag set
+
+            const filter = { question_text: q.question_text };
+
+            const updated = await Question.findOneAndUpdate(
+                filter,
+                q,
+                { upsert: true, new: true }
+            );
+            return updated;
+        }
+
         if (Array.isArray(questionsData)) {
-            result = await Question.insertMany(questionsData);
-            console.log(`✅ ${result.length} questions added!`);
+            for await (const q of questionsData) {
+                const doc = await upsertOne(q);
+                result.push(doc);
+            }
         } else {
-            result = await Question.create(questionsData);
-            console.log(`✅ 1 question added: ${questionsData.question_text}`);
+            questionsData.is_ruf = is_ruf;
+            const doc = await upsertOne(questionsData);
+            result = [doc];
         }
 
         res.json({
             success: true,
-            inserted: Array.isArray(result) ? result.length : 1,
-            questions: result
+            inserted_or_updated: result.length,
+            questions: result,
         });
     } catch (error) {
-        res.status(400).json({
-            success: false,
-            error: error.message
-        });
+        res.status(400).json({ success: false, error: error.message });
     }
 });
+
+
 
 // Seed data on startup
 // seedData();
