@@ -26,6 +26,8 @@ mongoose.connect('mongodb+srv://ritanshu77:ritanshu77@cluster0.ki7lbh0.mongodb.n
 
 // Question Schema
 const questionSchema = new mongoose.Schema({
+    question_no:{type:Number,default:0},
+    paper_category:{type:Number,default:0},
     question_text: { type: String, required: true },
     subject: { type: String, required: true },
     topic: { type: String, required: true },
@@ -41,6 +43,7 @@ const questionSchema = new mongoose.Schema({
         created_at: { type: Date, default: Date.now },
         updated_at: { type: Date, default: Date.now }
     }],
+    question_category:{type:Number,default:0},
     is_ruf: { type: Boolean, default: true },
     created_at: { type: Date, default: Date.now }
 });
