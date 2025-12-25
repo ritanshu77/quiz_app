@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="hi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MCQ Quiz - paper category Filtration</title>
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        html,
+        body {
+            width: 100%;
+            min-height: 100vh;
+            margin: 0;
+            padding: 0;
+            background: #333;
+            font-family: Arial, sans-serif;
+        }
+
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            padding: 20px 0;
+        }
+
+        .quiz-wrapper {
+            width: 100%;
+            max-width: 720px;
+            padding: 0 20px;
+        }
+
+        .quiz-container {
+            background: white;
+            padding: 28px;
+            border-radius: 16px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        /* --- paper category Bar Styles --- */
+        .filter-section {
+            background: #f1f3f5;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            border: 1px solid #dee2e6;
+        }
+
+        .filter-label {
+            font-weight: bold;
+            display: block;
+            margin-bottom: 8px;
+            color: #495057;
+        }
+
+        #paper_categoryFilter {
+            width: 100%;
+            padding: 10px;
+            border-radius: 8px;
+            border: 2px solid #007bff;
+            font-size: 16px;
+            outline: none;
+        }
+
+        .question {
+            font-size: 20px;
+            font-weight: bold;
+            margin-bottom: 18px;
+            color: #333;
+        }
+
+        .option {
+            display: block;
+            padding: 14px;
+            margin: 8px 0;
+            background: #f8f9fa;
+            border: 2px solid #dee2e6;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+
+        .option:hover {
+            background: #e9ecef;
+            border-color: #007bff;
+        }
+
+        .option.selected {
+            background: #007bff;
+            color: white;
+        }
+
+        .option.correct {
+            background: #28a745;
+            color: white;
+        }
+
+        .option.incorrect {
+            background: #dc3545;
+            color: white;
+        }
+
+        .nav-buttons {
+            display: flex;
+            gap: 8px;
+            justify-content: space-between;
+            margin-top: 10px;
+        }
+
+        button {
+            padding: 10px 15px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 15px;
+        }
+
+        .prev-btn {
+            background: #6c757d;
+            color: white;
+        }
+
+        .next-btn {
+            background: #007bff;
+            color: white;
+        }
+
+        .next-btn:disabled {
+            background: #ccc;
+        }
+
+        .counter {
+            background: #17a2b8;
+            color: white;
+            padding: 8px;
+            border-radius: 5px;
+            text-align: center;
+            margin-bottom: 10px;
+        }
+
+        .score {
+            background: #28a745;
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            margin-top: 15px;
+            display: none;
+        }
+
+        .explanation-box {
+            display: none;
+            margin-top: 12px;
+            padding: 12px;
+            border-radius: 10px;
+        }
+
+        .explanation-correct {
+            background: #d4edda;
+            border: 2px solid #28a745;
+        }
+
+        .explanation-wrong {
+            background: #f8d7da;
+            border: 2px solid #dc3545;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="quiz-wrapper">
+        <div class="quiz-container">
+            <div class="filter-section">
+                <label class="filter-label" for="paper_categoryFilter">📁 paper category चुनें:</label>
+                <select id="paper_categoryFilter">
+                    <!-- <option value="all">Sabhi Questions (Default)</option> -->
+                    <option value="0" selected>Other Random Question</option>
+                    <option value="5">VDO 2025</option>
+                    <!-- <option value="GK">General Knowledge</option>
+                <option value="Science">Science</option> -->
+                </select>
+            </div>
+
+            <div class="counter" id="counter">Loading...</div>
+            <div id="subjectInfo" style="font-size: 13px; color: #666; margin-bottom: 5px;"></div>
+            <div class="question" id="question"></div>
+            <div class="options" id="options"></div>
+
+            <div id="explanationBox" class="explanation-box">
+                <b id="explanationIcon"></b>
+                <div id="explanationText"></div>
+            </div>
+
+            <div class="nav-buttons">
+                <button class="prev-btn" id="prevBtn">Previous</button>
+                <button class="next-btn" id="nextBtn">Next Question</button>
+            </div>
+
+            <div class="score" id="score"></div>
+            <div id="loading" style="text-align:center; display:none; margin-top:10px;">⏳ Loading questions...</div>
+        </div>
+    </div>
+
+    <script>
+        let allQuestions = [];
+        let currentQuestion = 0;
+        let score = 0;
+        let answered = [];
+        let locked = [];
+
+        $(document).ready(function () {
+            // Initial Load
+            loadAllQuestions("0");
+
+            // 🔄 paper_category Change Event
+            $("#paper_categoryFilter").change(function () {
+                const selectedCat = $(this).val();
+                resetQuiz();
+                loadAllQuestions(selectedCat);
+            });
+
+            $("#prevBtn").click(function () {
+                if (currentQuestion > 0) {
+                    currentQuestion--;
+                    loadCurrentQuestion();
+                }
+            });
+
+            $("#nextBtn").click(function () {
+                if (!locked[currentQuestion]) {
+                    checkAnswer();
+                    locked[currentQuestion] = true;
+                }
+                if (currentQuestion < allQuestions.length - 1) {
+                    currentQuestion++;
+                    loadCurrentQuestion();
+                } else {
+                    showResult();
+                }
+            });
+        });
+
+        function resetQuiz() {
+            allQuestions = [];
+            currentQuestion = 0;
+            score = 0;
+            answered = [];
+            locked = [];
+            $("#score").hide();
+            $("#explanationBox").hide();
+        }
+
+        function loadAllQuestions(paper_category) {
+            $("#loading").show();
+            $("#question, #options").empty();
+
+            // Backend Filter logic: paper_category query parameter pass kar rahe hain
+            let apiUrl = '/api/questions';
+            
+            // Check karo ki url mein pehle se '?' hai ya nahi
+            let separator = apiUrl.includes('?') ? '&' : '?';
+
+            // if (paper_category !== "all") {
+                apiUrl += `${separator}paper_category=${paper_category}`;
+            // }
+            // -----------
+
+            $.get(apiUrl)
+                .done(function (data) {
+                    allQuestions = data;
+                    $("#loading").hide();
+                    if (allQuestions.length > 0) {
+                        loadCurrentQuestion();
+                    } else {
+                        $("#question").html("❌ Is paper category mein koi questions nahi hain.");
+                    }
+                })
+                .fail(function () {
+                    $("#loading").hide();
+                    $("#question").html("❌ API Error. Check Backend.");
+                });
+        }
+
+        function loadCurrentQuestion() {
+            const q = allQuestions[currentQuestion];
+            if (!q) return;
+
+            $("#counter").text(`Question ${currentQuestion + 1} / ${allQuestions.length}`);
+            $("#subjectInfo").text(`📚 ${q.subject || 'N/A'} | paper_category: ${q.paper_category || '0'}`);
+            $("#question").html(`${currentQuestion + 1}. ${q.question_text}`);
+            $("#options").empty();
+            $("#explanationBox").hide();
+
+            const correctIndex = q.options.findIndex(opt => opt.is_correct);
+            const userAnswer = answered[currentQuestion];
+
+            q.options.forEach((option, index) => {
+                let optionClass = "option";
+                if (userAnswer !== undefined) {
+                    if (index === correctIndex) optionClass += " correct";
+                    else if (index === userAnswer) optionClass += " incorrect";
+                }
+
+                $("#options").append(`<div class="${optionClass}" data-index="${index}">${option.text}</div>`);
+            });
+
+            // Click Handler
+            if (!locked[currentQuestion]) {
+                $(".option").click(function () {
+                    answered[currentQuestion] = $(this).data('index');
+                    checkAnswer();
+                    locked[currentQuestion] = true;
+                    loadCurrentQuestion();
+                });
+            }
+
+            updateButtons();
+        }
+
+        function checkAnswer() {
+            const q = allQuestions[currentQuestion];
+            const correctIndex = q.options.findIndex(opt => opt.is_correct);
+            if (answered[currentQuestion] === correctIndex) {
+                score++;
+                showExplanation(q, true);
+            } else {
+                showExplanation(q, false);
+            }
+        }
+
+        function showExplanation(q, isCorrect) {
+            $("#explanationText").text(q.explanation || "No explanation available.");
+            $("#explanationIcon").text(isCorrect ? "✅ Correct!" : "❌ Wrong!");
+            $("#explanationBox").removeClass("explanation-correct explanation-wrong")
+                .addClass(isCorrect ? "explanation-correct" : "explanation-wrong").show();
+        }
+
+        function updateButtons() {
+            $("#prevBtn").prop('disabled', currentQuestion === 0);
+            $("#nextBtn").toggle(answered[currentQuestion] !== undefined);
+        }
+
+        function showResult() {
+            $(".quiz-container > div:not(.score, .filter-section)").hide();
+            $("#score").show().html(`<h3>Quiz Finished!</h3>Score: ${score} / ${allQuestions.length}`);
+        }
+    </script>
+</body>
+
+</html>

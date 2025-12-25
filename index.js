@@ -152,15 +152,16 @@ app.put('/api/questions/:id/comment', async (req, res) => {
 app.get('/api/questions', async (req, res) => {
     try {
         console.log("--req.query========", req.query);
-
-        const { subject, topic, limit = 20, difficulty } = req.query;
+// limit = 20
+        const { subject, topic,  difficulty,paper_category } = req.query;
         const filter = {};
 
         if (subject) filter.subject = subject;
         if (topic) filter.topic = topic;
         if (difficulty) filter.difficulty = difficulty;
+        if(paper_category) filter.paper_category=Number(paper_category);
 
-        const maxLimit = Math.min(parseInt(limit) || 20, 100); // safety
+        // const maxLimit = Math.min(parseInt(limit) || 20, 100); // safety
 
         // console.log("-----agg---", [
         //   { $match: filter },
@@ -170,7 +171,7 @@ app.get('/api/questions', async (req, res) => {
 
         const questions = await Question.aggregate([
             { $match: filter },
-            { $sort: { created_at: -1 } },      // 🔥 latest first
+            { $sort: { question_no: 1 ,created_at: -1 } },      // 🔥 latest first
             // { $limit: maxLimit }                // 🔥 limit after sort
         ]);
 

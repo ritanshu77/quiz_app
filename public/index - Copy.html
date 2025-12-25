@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MCQ Quiz - Filter + Comments + API</title>
+    <title>MCQ Quiz - jQuery + API + Dropdown Comments</title>
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
     <style>
         * { box-sizing: border-box; }
@@ -25,10 +25,10 @@
             padding: 10px 0;
         }
 
-        /* Outer wrapper */
+        /* Outer wrapper – center + responsive width */
         .quiz-wrapper {
             width: 100%;
-            max-width: 720px;
+            max-width: 720px; /* 🔥 laptop pe wider card */
             padding: 0 20px;
         }
 
@@ -39,30 +39,6 @@
             box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
             width: 100%;
         }
-
-        /* --- 🔥 NEW: Filter Section CSS --- */
-        .filter-section {
-            background: #f1f3f5;
-            padding: 15px;
-            border-radius: 10px;
-            margin-bottom: 20px;
-            border: 1px solid #dee2e6;
-        }
-        .filter-label {
-            font-weight: bold;
-            display: block;
-            margin-bottom: 8px;
-            color: #495057;
-        }
-        #paper_categoryFilter {
-            width: 100%;
-            padding: 10px;
-            border-radius: 8px;
-            border: 2px solid #007bff;
-            font-size: 16px;
-            outline: none;
-        }
-        /* --------------------------------- */
 
         .question {
             font-size: 20px;
@@ -103,10 +79,6 @@
             color: white;
             border-color: #c82333;
         }
-        .option.disabled {
-             pointer-events: none;
-             opacity: 0.7;
-        }
 
         .nav-buttons {
             display: flex;
@@ -120,16 +92,26 @@
             border-radius: 8px;
             font-size: 15px;
             cursor: pointer;
-            transition: background 0.3s;
+            transition: background 0.3s, box-shadow 0.3s, transform 0.2s;
         }
-        .prev-btn { background: #6c757d; color: white; }
-        .prev-btn:hover { background: #5a6268; }
-        .prev-btn:disabled { background: #ccc; cursor: not-allowed; }
-
-        .next-btn { background: #007bff; color: white; }
-        .next-btn:hover { background: #0056b3; }
-        .next-btn:disabled { background: #ccc; cursor: not-allowed; }
-
+        .prev-btn {
+            background: #6c757d;
+            color: white;
+        }
+        .prev-btn:hover {
+            background: #5a6268;
+        }
+        .next-btn {
+            background: #007bff;
+            color: white;
+        }
+        .next-btn:hover {
+            background: #0056b3;
+        }
+        .next-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
         .score {
             background: #28a745;
             color: white;
@@ -153,8 +135,6 @@
             text-align: center;
             color: #007bff;
             font-size: 16px;
-            display: none;
-            margin-top: 10px;
         }
         .subject-info {
             background: #e7f3ff;
@@ -200,7 +180,12 @@
             font-size: 15px;
             border-radius: 20px;
             cursor: pointer;
+            transition: all 0.3s;
             width: 100%;
+        }
+        #commentToggleBtn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 3px 10px rgba(255,193,7,0.4);
         }
         #commentSection {
             display: none;
@@ -209,6 +194,7 @@
             background: linear-gradient(135deg, #f8f9fa, #e9ecef);
             border-radius: 12px;
             border: 2px solid #007bff;
+            box-shadow: 0 3px 10px rgba(0,123,255,0.1);
         }
         #commentInput {
             width: 100%;
@@ -220,6 +206,11 @@
             min-height: 70px;
             font-family: inherit;
             margin-bottom: 10px;
+        }
+        #commentInput:focus {
+            outline: none;
+            border-color: #007bff;
+            box-shadow: 0 0 10px rgba(0,123,255,0.3);
         }
         #saveCommentBtn {
             background: linear-gradient(45deg, #28a745, #218838);
@@ -237,27 +228,26 @@
             cursor: not-allowed;
         }
 
+        /* Small screens fine-tune */
         @media (max-width: 480px) {
-            .quiz-wrapper { padding: 0 10px; }
-            .quiz-container { padding: 18px; }
+            .quiz-wrapper {
+                max-width: 100%;
+                padding: 0 10px;
+            }
+            .quiz-container {
+                padding: 18px;
+            }
             .question { font-size: 16px; }
             .option { font-size: 14px; padding: 10px; }
+            .counter { font-size: 13px; }
+            .subject-info { font-size: 12px; }
         }
     </style>
 </head>
 <body>
   <div class="quiz-wrapper">
     <div class="quiz-container">
-        
-        <div class="filter-section">
-            <label class="filter-label" for="paper_categoryFilter">📁 Paper Category चुनें:</label>
-            <select id="paper_categoryFilter">
-                <option value="0" selected>Other Random Question</option>
-                <option value="5">VDO 2025</option>
-                <option value="all">All Categories</option>
-            </select>
-        </div>
-        <div class="counter" id="counter">Loading...</div>
+        <div class="counter" id="counter">Loading Question 1...</div>
         <div class="subject-info" id="subjectInfo" style="display:none;"></div>
         <div class="question" id="question"></div>
         <div class="options" id="options"></div>
@@ -279,7 +269,6 @@
             <button class="prev-btn" id="prevBtn">Previous</button>
             <button class="next-btn" id="nextBtn">Next Question</button>
         </div>
-        
         <div class="score" id="score"></div>
         <div id="loading" class="loading">API se question load ho raha hai...</div>
     </div>
@@ -290,18 +279,10 @@
     let currentQuestion = 0;
     let score = 0;
     let answered = [];      // selected option index
-    let locked = [];        // is question locked?
+    let locked = [];        // is question ka answer lock ho chuka?
 
     $(document).ready(function () {
-        // Initial load with default selection (value="0")
-        loadAllQuestions("0");
-
-        // 🔥 Event: Jab Category Change ho
-        $("#paper_categoryFilter").change(function () {
-            const selectedCat = $(this).val();
-            resetQuiz(); // Reset score and counters
-            loadAllQuestions(selectedCat);
-        });
+        loadAllQuestions();
 
         $("#prevBtn").click(function () {
             $("#explanationBox, #commentToggleBtn, #commentSection").hide();
@@ -313,7 +294,7 @@
 
         $("#nextBtn").click(function () {
             if (!locked[currentQuestion]) {
-                checkAnswer(); 
+                checkAnswer();           // pehli baar score add
                 locked[currentQuestion] = true;
             }
             if (currentQuestion < allQuestions.length - 1) {
@@ -324,56 +305,22 @@
             }
         });
 
-        // Toggle Comments
         $(document).on('click', '#commentToggleBtn', function() {
             $("#commentSection").slideToggle(200);
-            $(this).text($(this).text().includes('Hide') 
-                ? '💬 Comment Add करें (Optional)' 
+            $(this).text($(this).text().includes('Hide')
+                ? '💬 Comment Add करें (Optional)'
                 : '🙈 Comment Hide करें');
         });
     });
 
-    // 🔥 Reset Function for Filter Change
-    function resetQuiz() {
-        allQuestions = [];
-        currentQuestion = 0;
-        score = 0;
-        answered = [];
-        locked = [];
-        $("#score").hide();
-        $("#explanationBox").hide();
-        $("#commentToggleBtn, #commentSection").hide();
-    }
-
-    // 🔥 Dynamic API URL Builder Logic
-    function loadAllQuestions(paper_category) {
+    function loadAllQuestions() {
         $("#loading").show();
-        $("#question, #options").empty();
-        $("#counter").text("Loading...");
-
-        // Base API URL
-        let apiUrl = '/api/questions?limit=20';
-
-        // Dynamic Query Parameter Append
-        if (paper_category) {
-            // Check if URL already has '?'
-            let separator = apiUrl.includes('?') ? '&' : '?';
-            apiUrl += `${separator}paper_category=${paper_category}`;
-        }
-
-        console.log("Fetching URL:", apiUrl); // Debugging ke liye
-
-        $.get(apiUrl)
+        $.get('/api/questions?limit=20')
             .done(function (data) {
                 allQuestions = data;
                 $("#loading").hide();
-                if (allQuestions.length > 0) {
-                    $("#counter").html(`Question <span id="current">1</span> / ${allQuestions.length}`);
-                    loadCurrentQuestion();
-                } else {
-                    $("#question").html("❌ Is category mein koi questions nahi hain.");
-                    $("#counter").text("0 / 0");
-                }
+                $("#counter").html(`Question <span id="current">1</span> / ${allQuestions.length}`);
+                loadCurrentQuestion();
             })
             .fail(function () {
                 $("#loading").html("❌ API Error - Sample questions loading...");
@@ -385,7 +332,7 @@
         const q = allQuestions[currentQuestion];
         if (!q) return;
 
-        $("#subjectInfo").show().html(`📚 ${q.subject || 'Subject'} | Cat: ${q.paper_category || 'N/A'}`);
+        $("#subjectInfo").show().html(`📚 ${q.subject} | ${q.topic} | ${q.difficulty}`);
         $("#question").html(`${currentQuestion + 1}. ${q.question_text}`);
         $("#options").empty();
         $("#explanationBox").hide();
@@ -419,7 +366,6 @@
             );
         });
 
-        // Click Event for Options
         if (!isLocked) {
             $(".option").off('click').click(function () {
                 const index = $(this).data('index');
@@ -429,25 +375,24 @@
                     checkAnswer();
                     locked[currentQuestion] = true;
                 }
+
                 loadCurrentQuestion();
             });
+        } else {
+            $(".option").off('click');
         }
 
-        // Show Explanation & Comment Logic if Answered
         if (userAnswer !== undefined) {
             showExplanation(q, userAnswer === correctIndex);
             $("#commentToggleBtn").show();
 
-            // Load Existing Comment for Guest
             const questionId  = q._id;
             const userComment = q.comments?.find(c => c.user_id === 'guest') || {};
             $("#commentInput").val(userComment.text || '');
 
-            // Save Comment Logic
             $("#saveCommentBtn").off('click').click(function() {
                 const commentText = $("#commentInput").val().trim();
                 if (!commentText) return alert('❌ Comment खाली नहीं हो सकता!');
-                
                 $(this).prop('disabled', true).text('Saving...');
                 $.ajax({
                     url: `/api/questions/${questionId}/comment`,
@@ -456,8 +401,7 @@
                     data: JSON.stringify({ comment: commentText, user_id: 'guest' }),
                     success: function(result) {
                         alert(result.message || '✅ Comment saved successfully!');
-                        // Refresh data silently to update comments locally if needed
-                        // loadAllQuestions($("#paper_categoryFilter").val()); // Optional
+                        loadAllQuestions();
                     },
                     error: function() {
                         alert('❌ Failed to save comment!');
@@ -486,6 +430,7 @@
     function checkAnswer() {
         const userAnswer = answered[currentQuestion];
         if (userAnswer === undefined) return;
+
         const correctIndex = allQuestions[currentQuestion].options.findIndex(opt => opt.is_correct);
         if (userAnswer === correctIndex && !locked[currentQuestion]) {
             score++;
@@ -504,7 +449,6 @@
 
     function showResult() {
         $("#question, #options, .nav-buttons, #counter, #subjectInfo, #explanationBox, #commentToggleBtn, #commentSection").hide();
-        $(".filter-section").hide(); // Result ke time filter bhi hide kar sakte hain
         $("#score").show().html(
             `Quiz Complete! Score: ${score}/${allQuestions.length} (${allQuestions.length ? Math.round((score / allQuestions.length) * 100) : 0}%)`
         );
@@ -512,15 +456,18 @@
 
     function loadSampleQuestion() {
         allQuestions = [{
-            _id: "test12345",
-            question_text: "Dynamic Filter Test Question",
+            _id: "test123",
+            question_text: "API Error - Test question",
             subject: "Test",
-            paper_category: "Sample",
+            topic: "Test",
+            difficulty: "easy",
             options: [
-                { text: "Option A", is_correct: true },
-                { text: "Option B", is_correct: false }
+                { text: "Working", is_correct: true },
+                { text: "Not Working", is_correct: false },
+                { text: "Maybe", is_correct: false },
+                { text: "Don't Know", is_correct: false }
             ],
-            explanation: "Sample explanation.",
+            explanation: "यह एक टेस्ट प्रश्न है।",
             comments: []
         }];
         loadCurrentQuestion();
