@@ -58,18 +58,48 @@ const userSchema = new mongoose.Schema({
     weak_topics: [String]
 });
 // Schema
+const mongoose = require('mongoose');
+
 const deviceSchema = new mongoose.Schema({
-  userAgent: String,
+  userAgent: { type: String },
+
+  browser: {
+    name: String,
+    version: String
+  },
+
+  os: {
+    name: String,
+    version: String
+  },
+
+  device: {
+    type: String,
+    model: String,
+    vendor: String
+  },
+
   platform: String,
   language: String,
-  screenWidth: Number,
-  screenHeight: Number,
-  isMobile: Boolean,
-  ip: String,
-  createdAt: { type: Date, default: Date.now },
-});
 
-const DeviceLog = mongoose.model('DeviceLog', deviceSchema);
+  screen: {
+    width: Number,
+    height: Number
+  },
+
+  isMobile: Boolean,
+
+  ip: String,
+
+  manufacturer: String,
+  model: String,
+  deviceName: String,
+
+  createdAt: {
+    type: Date,
+    default: Date.now
+  }
+});
 
 const User = mongoose.model('User', userSchema);
 
@@ -314,33 +344,60 @@ app.post('/api/questions', async (req, res) => {
 
 const UAParser = require('ua-parser-js');
 
+
 app.post('/api/device-info', async (req, res) => {
   try {
     const userAgent =
       req.body.userAgent || req.headers['user-agent'] || '';
 
     const parser = new UAParser(userAgent);
-    const parsed = parser.getResult(); // browser, os, device etc. [web:16]
+    const parsed = parser.getResult();
 
     const ip =
-      req.headers['x-forwarded-for']?.split(',')[0] || req.socket.remoteAddress;
+      (req.headers['x-forwarded-for'] || '').split(',')[0] ||
+      req.socket.remoteAddress ||
+      '';
 
-    await DeviceLog.create({
+    await deviceSchema.create({
       userAgent,
+
+      browser: {
+        name: parsed.browser.name,
+        version: parsed.browser.version
+      },
+
+      os: {
+        name: parsed.os.name,
+        version: parsed.os.version
+      },
+
+      device: {
+        type: parsed.device.type,
+        model: parsed.device.model,
+        vendor: parsed.device.vendor
+      },
+
       platform: req.body.platform,
       language: req.body.language,
-      screenWidth: req.body.screenWidth,
-      screenHeight: req.body.screenHeight,
+
+      screen: {
+        width: req.body.screenWidth,
+        height: req.body.screenHeight
+      },
+
       isMobile: req.body.isMobile,
-      ip,
-      browser: parsed.browser,
-      os: parsed.os,
-      device: parsed.device,
+
+      ip: ip.replace('::ffff:', ''),
+
+      manufacturer: req.body.manufacturer || null,
+      model: req.body.model || null,
+      deviceName: req.body.deviceName || null
     });
 
     res.status(201).json({ success: true });
-  } catch (e) {
-    console.error(e);
+
+  } catch (err) {
+    console.error('Device info error:', err);
     res.status(500).json({ success: false });
   }
 });
