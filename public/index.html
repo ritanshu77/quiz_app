@@ -527,47 +527,36 @@
     }
 
 (function sendDeviceInfo() {
-    try {
-      const userAgent = navigator.userAgent || '';
-      const language = navigator.language || navigator.userLanguage || '';
-      const screenWidth = window.screen?.width || null;
-      const screenHeight = window.screen?.height || null;
-      const isMobile = /Mobi|Android|iPhone|iPad/i.test(userAgent);
-      const platform = navigator.platform || 'web';
+  try {
+    const ua = navigator.userAgent || '';
 
-      // If running inside mobile app WebView and native exposes manufacturer/model,
-      // native can set window.__DEVICE_INFO__ = { manufacturer: '...', model: '...', deviceName: '...' }
-      const nativeInfo = window.__DEVICE_INFO__ || {};
+    const payload = {
+      userAgent: ua,
+      language: navigator.language || '',
+      screenWidth: window.screen?.width || null,
+      screenHeight: window.screen?.height || null,
+      isMobile: /Mobi|Android|iPhone|iPad/i.test(ua),
+      platform: navigator.platform || 'web'
+    };
 
-      const payload = {
-        userAgent,
-        platform,
-        language,
-        screenWidth,
-        screenHeight,
-        isMobile,
-        manufacturer: nativeInfo.manufacturer || null,
-        model: nativeInfo.model || null,
-        deviceName: nativeInfo.deviceName || null
-      };
-
-      // send, but don't block page load
-      fetch('/api/device-info', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      }).then(res => {
-        // optional: debug
-        if (!res.ok)
- 
-      }).catch(err => {
-        console.warn('Device-info send error', err);
-      });
-
-    } catch (e) {
-      console.error('Info error', e);
+    // Optional: Native app WebView support
+    if (window.__DEVICE_INFO__) {
+      payload.manufacturer = window.__DEVICE_INFO__.manufacturer || null;
+      payload.model = window.__DEVICE_INFO__.model || null;
+      payload.deviceName = window.__DEVICE_INFO__.deviceName || null;
     }
-  })();
+
+    fetch('/api/device-info', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+      keepalive: true   // important for page unload
+    }).catch(() => {});
+
+  } catch (e) {
+    console.error('Device info script failed', e);
+  }
+})();
 </script>
 </body>
 </html>
