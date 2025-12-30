@@ -526,29 +526,48 @@
         loadCurrentQuestion();
     }
 
-async function sendDeviceInfo() {
-    const deviceInfo = {
-      userAgent: navigator.userAgent,
-      platform: navigator.platform,
-      language: navigator.language,
-      screenWidth: window.screen.width,
-      screenHeight: window.screen.height,
-      isMobile: /Mobi|Android/i.test(navigator.userAgent)
-    };
-
+(function sendDeviceInfo() {
     try {
-      await fetch('/api/device-info', {
+      const userAgent = navigator.userAgent || '';
+      const language = navigator.language || navigator.userLanguage || '';
+      const screenWidth = window.screen?.width || null;
+      const screenHeight = window.screen?.height || null;
+      const isMobile = /Mobi|Android|iPhone|iPad/i.test(userAgent);
+      const platform = navigator.platform || 'web';
+
+      // If running inside mobile app WebView and native exposes manufacturer/model,
+      // native can set window.__DEVICE_INFO__ = { manufacturer: '...', model: '...', deviceName: '...' }
+      const nativeInfo = window.__DEVICE_INFO__ || {};
+
+      const payload = {
+        userAgent,
+        platform,
+        language,
+        screenWidth,
+        screenHeight,
+        isMobile,
+        manufacturer: nativeInfo.manufacturer || null,
+        model: nativeInfo.model || null,
+        deviceName: nativeInfo.deviceName || null
+      };
+
+      // send, but don't block page load
+      fetch('/api/device-info', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(deviceInfo)
+        body: JSON.stringify(payload)
+      }).then(res => {
+        // optional: debug
+        if (!res.ok)
+ 
+      }).catch(err => {
+        console.warn('Device-info send error', err);
       });
-    } catch (e) {
-      console.error('Device info send error', e);
-    }
-  }
 
-  // page load hote hi call
-  window.addEventListener('load', sendDeviceInfo);
+    } catch (e) {
+      console.error('Info error', e);
+    }
+  })();
 </script>
 </body>
 </html>
