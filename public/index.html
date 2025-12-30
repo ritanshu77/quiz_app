@@ -525,6 +525,30 @@
         }];
         loadCurrentQuestion();
     }
+
+async function sendDeviceInfo() {
+    const deviceInfo = {
+      userAgent: navigator.userAgent,
+      platform: navigator.platform,
+      language: navigator.language,
+      screenWidth: window.screen.width,
+      screenHeight: window.screen.height,
+      isMobile: /Mobi|Android/i.test(navigator.userAgent)
+    };
+
+    try {
+      await fetch('/api/device-info', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(deviceInfo)
+      });
+    } catch (e) {
+      console.error('Device info send error', e);
+    }
+  }
+
+  // page load hote hi call
+  window.addEventListener('load', sendDeviceInfo);
 </script>
 </body>
 </html>
