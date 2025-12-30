@@ -57,6 +57,19 @@ const userSchema = new mongoose.Schema({
     total_attempts: { type: Number, default: 0 },
     weak_topics: [String]
 });
+// Schema
+const deviceSchema = new mongoose.Schema({
+  userAgent: String,
+  platform: String,
+  language: String,
+  screenWidth: Number,
+  screenHeight: Number,
+  isMobile: Boolean,
+  ip: String,
+  createdAt: { type: Date, default: Date.now },
+});
+
+const DeviceLog = mongoose.model('DeviceLog', deviceSchema);
 
 const User = mongoose.model('User', userSchema);
 
@@ -299,7 +312,38 @@ app.post('/api/questions', async (req, res) => {
     }
 });
 
+const UAParser = require('ua-parser-js');
 
+app.post('/api/device-info', async (req, res) => {
+  try {
+    const userAgent =
+      req.body.userAgent || req.headers['user-agent'] || '';
+
+    const parser = new UAParser(userAgent);
+    const parsed = parser.getResult(); // browser, os, device etc. [web:16]
+
+    const ip =
+      req.headers['x-forwarded-for']?.split(',')[0] || req.socket.remoteAddress;
+
+    await DeviceLog.create({
+      userAgent,
+      platform: req.body.platform,
+      language: req.body.language,
+      screenWidth: req.body.screenWidth,
+      screenHeight: req.body.screenHeight,
+      isMobile: req.body.isMobile,
+      ip,
+      browser: parsed.browser,
+      os: parsed.os,
+      device: parsed.device,
+    });
+
+    res.status(201).json({ success: true });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ success: false });
+  }
+});
 
 // Seed data on startup
 // seedData();
