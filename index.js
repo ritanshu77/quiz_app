@@ -342,66 +342,10 @@ app.post('/api/questions', async (req, res) => {
     }
 });
 
-const UAParser = require('ua-parser-js');
 
 
-app.post('/api/device-info', async (req, res) => {
-  try {
-    const userAgent =
-      req.body.userAgent || req.headers['user-agent'] || '';
-
-    const parser = new UAParser(userAgent);
-    const parsed = parser.getResult();
-
-    const ip =
-      (req.headers['x-forwarded-for'] || '').split(',')[0] ||
-      req.socket.remoteAddress ||
-      '';
-
-    await deviceSchema.create({
-      userAgent,
-
-      browser: {
-        name: parsed.browser.name,
-        version: parsed.browser.version
-      },
-
-      os: {
-        name: parsed.os.name,
-        version: parsed.os.version
-      },
-
-      device: {
-        type: parsed.device.type,
-        model: parsed.device.model,
-        vendor: parsed.device.vendor
-      },
-
-      platform: req.body.platform,
-      language: req.body.language,
-
-      screen: {
-        width: req.body.screenWidth,
-        height: req.body.screenHeight
-      },
-
-      isMobile: req.body.isMobile,
-
-      ip: ip.replace('::ffff:', ''),
-
-      manufacturer: req.body.manufacturer || null,
-      model: req.body.model || null,
-      deviceName: req.body.deviceName || null
-    });
-
-    res.status(201).json({ success: true });
-
-  } catch (err) {
-    console.error('Device info error:', err);
-    res.status(500).json({ success: false });
-  }
-});
-
+     
+      
 // Seed data on startup
 // seedData();
 
