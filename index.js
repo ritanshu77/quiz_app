@@ -45,19 +45,21 @@ const questionSchema = new mongoose.Schema({
     question_category:{type:Number,default:0},
     is_ruf: { type: Boolean, default: true },
     created_at: { type: Date, default: Date.now }
+},{
+    versionKey:false
 });
 
 const Question = mongoose.model('Question', questionSchema);
 
 // User Schema (Score tracking)
 const userSchema = new mongoose.Schema({
-    username: { type: String, required: true, unique: true },
-    total_score: { type: Number, default: 0 },
-    total_attempts: { type: Number, default: 0 },
-    weak_topics: [String]
+    name: { type: String, required: true },
+    created_at: { type: Date, default: Date.now }
+},{
+    versionKey:false
 });
 
-const User = mongoose.model('User', userSchema);
+const User = mongoose.model("User", userSchema);
 
 // 🔐 Device / Login Info Schema (UPDATED)
 const logInfoSchema = new mongoose.Schema({
@@ -85,9 +87,30 @@ const logInfoSchema = new mongoose.Schema({
     ],
 
     created_at: { type: Date, default: Date.now }
+},{
+    versionKey:false
 });
 
 const LogInfo = mongoose.model('LogInfo', logInfoSchema);
+
+const userAnswerSchema = new mongoose.Schema({
+    user_id: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    exam_name: String,
+
+    question_id: { type: mongoose.Schema.Types.ObjectId, ref: "Question" },
+    subject: String,
+    topic: String,
+
+    selected_option: Number,
+    is_correct: Boolean,
+
+    created_at: { type: Date, default: Date.now }
+},{
+    versionKey:false
+});
+
+const UserAnswer = mongoose.model("UserAnswer", userAnswerSchema);
+
 
 // Sample Rajasthan Computer Instructor Questions (Auto-insert if empty)
 async function seedData() {
@@ -402,7 +425,61 @@ app.post('/api/device-info', async (req, res) => {
         res.status(500).json({ success: false });
     }
 });
+app.post("/api/user", async (req, res) => {
+    try {
+        const { name } = req.body;
+        if (!name) return res.status(400).json({ error: "Name required" });
 
+        const user = await User.create({ name });
+        res.json({ success: true, user_id: user._id, name: user.name });
+    } catch (e) {
+        res.status(500).json({ error: "Server error" });
+    }
+});
+app.post("/api/user-answer", async (req, res) => {
+    try {
+        const {
+            user_id,
+            exam_name,
+            question_id,
+            subject,
+            topic,
+            selected_option,
+            is_correct
+        } = req.body;
+
+        await UserAnswer.findOneAndUpdate(
+            { user_id, exam_name, question_id },
+            {
+                user_id,
+                exam_name,
+                question_id,
+                subject,
+                topic,
+                selected_option,
+                is_correct,
+                created_at: new Date()
+            },
+            { upsert: true }
+        );
+
+        res.json({ success: true });
+    } catch (e) {
+        res.status(500).json({ error: "Save failed" });
+    }
+});
+app.get("/api/user-answer/:user_id/:exam", async (req, res) => {
+    const { user_id, exam } = req.params;
+
+    const answers = await UserAnswer.find({ user_id, exam_name: exam });
+    res.json(answers);
+});
+app.delete("/api/user-answer/:user_id/:exam", async (req, res) => {
+    const { user_id, exam } = req.params;
+
+    await UserAnswer.deleteMany({ user_id, exam_name: exam });
+    res.json({ success: true });
+});
 // Seed data on startup
 // seedData();
 

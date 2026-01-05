@@ -305,6 +305,43 @@
 </head>
 
 <body>
+    <!-- 🔐 FIRST TIME USER NAME POPUP -->
+    <div id="nameModal" style="
+    display:none;
+    position:fixed;
+    inset:0;
+    background:rgba(0,0,0,0.6);
+    z-index:9999;
+">
+        <div style="
+        background:#fff;
+        width:90%;
+        max-width:320px;
+        margin:30% auto;
+        padding:20px;
+        border-radius:14px;
+        text-align:center;
+    ">
+            <h3>👋 आपका नाम</h3>
+            <p style="font-size:14px;color:#555;">Quiz शुरू करने से पहले नाम डालें</p>
+
+            <input id="userNameInput" placeholder="Enter your name"
+                style="width:100%;padding:10px;font-size:15px;margin-top:10px;">
+
+            <button id="saveNameBtn" style="
+            margin-top:12px;
+            width:100%;
+            padding:10px;
+            background:#007bff;
+            color:#fff;
+            border:none;
+            border-radius:8px;
+            font-size:15px;">
+                Start Quiz
+            </button>
+        </div>
+    </div>
+
     <div class="quiz-wrapper">
         <div class="quiz-container">
 
@@ -350,7 +387,8 @@
         let currentQuestion = 0;
         let score = 0;
         let answered = [];      // selected option index
-        let locked = [];        // is question locked?
+        let locked = [];
+        let userAnswersMap = {};      // is question locked?
 
         $(document).ready(function () {
             // Initial load with default selection (value="0")
@@ -371,11 +409,19 @@
                 }
             });
 
+            // $("#nextBtn").click(function () {
+            //     if (!locked[currentQuestion]) {
+            //         checkAnswer();
+            //         locked[currentQuestion] = true;
+            //     }
+            //     if (currentQuestion < allQuestions.length - 1) {
+            //         currentQuestion++;
+            //         loadCurrentQuestion();
+            //     } else {
+            //         showResult();
+            //     }
+            // });
             $("#nextBtn").click(function () {
-                if (!locked[currentQuestion]) {
-                    checkAnswer();
-                    locked[currentQuestion] = true;
-                }
                 if (currentQuestion < allQuestions.length - 1) {
                     currentQuestion++;
                     loadCurrentQuestion();
@@ -404,9 +450,27 @@
             $("#explanationBox").hide();
             $("#commentToggleBtn, #commentSection").hide();
         }
+        function loadUserAnswers() {
+            const userId = getUserId();
+            if (!userId) return;
+
+            const examName = $("#paper_categoryFilter option:selected").text();
+
+            $.get(`/api/user-answer/${userId}/${examName}`, function (data) {
+                userAnswersMap = {};
+                data.forEach(ans => {
+                    userAnswersMap[ans.question_id] = {
+                        selected_option: ans.selected_option,
+                        is_correct: ans.is_correct
+                    };
+                });
+            });
+        }
 
         // 🔥 Dynamic API URL Builder Logic
         function loadAllQuestions(paper_category) {
+            loadUserAnswers();
+
             $("#loading").show();
             $("#question, #options").empty();
             $("#counter").text("Loading...");
@@ -443,6 +507,11 @@
 
         function loadCurrentQuestion() {
             const q = allQuestions[currentQuestion];
+            if (userAnswersMap[q._id]) {
+                answered[currentQuestion] =
+                    userAnswersMap[q._id].selected_option;
+                locked[currentQuestion] = true;
+            }
             if (!q) return;
 
             $("#subjectInfo").show().html(`📚 ${q.subject || 'Subject'} | Cat: ${q.paper_category || 'N/A'}`);
@@ -489,6 +558,11 @@
                         checkAnswer();
                         locked[currentQuestion] = true;
                     }
+                    saveUserAnswer(
+                        q,
+                        index,
+                        index === correctIndex
+                    );
                     loadCurrentQuestion();
                 });
             }
@@ -557,9 +631,13 @@
             $("#total").text(allQuestions.length);
         }
 
+        // function updateButtons() {
+        //     $("#prevBtn").prop('disabled', currentQuestion === 0);
+        //     $("#nextBtn").prop('disabled', answered[currentQuestion] === undefined);
+        // }
         function updateButtons() {
             $("#prevBtn").prop('disabled', currentQuestion === 0);
-            $("#nextBtn").prop('disabled', answered[currentQuestion] === undefined);
+            $("#nextBtn").prop('disabled', false); // 🔥 ALWAYS ENABLE
         }
 
         function showResult() {
@@ -588,38 +666,115 @@
     </script>
     <!-- //device info  -->
     <script>
-    function sendDeviceInfo() {
-        const deviceInfo = {
-            userAgent: navigator.userAgent,
-            platform: navigator.platform,
-            language: navigator.language,
-            screenWidth: window.screen.width,
-            screenHeight: window.screen.height,
-            isMobile: /Mobi|Android/i.test(navigator.userAgent),
-            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-            referrer: document.referrer || "direct",
-            page: window.location.pathname,
-        };
+        function sendDeviceInfo() {
+            const deviceInfo = {
+                userAgent: navigator.userAgent,
+                platform: navigator.platform,
+                language: navigator.language,
+                screenWidth: window.screen.width,
+                screenHeight: window.screen.height,
+                isMobile: /Mobi|Android/i.test(navigator.userAgent),
+                timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+                referrer: document.referrer || "direct",
+                page: window.location.pathname,
+            };
 
-        $.ajax({
-            url: "/api/device-info",
-            method: "POST",
-            contentType: "application/json",
-            data: JSON.stringify(deviceInfo),
-            success: function () {
-                console.log("✅ Device info sent");
-            },
-            error: function () {
-                console.log("❌ Failed to send device info");
-            }
+            $.ajax({
+                url: "/api/device-info",
+                method: "POST",
+                contentType: "application/json",
+                data: JSON.stringify(deviceInfo),
+                success: function () {
+                    console.log("✅ Device info sent");
+                },
+                error: function () {
+                    console.log("❌ Failed to send device info");
+                }
+            });
+        }
+
+        // Page load hote hi call
+        $(document).ready(function () {
+            sendDeviceInfo();
         });
-    }
+    </script>
 
-    // Page load hote hi call
-    $(document).ready(function () {
-        sendDeviceInfo();
-    });
-</script>
+    <script>
+        /* ================= USER SESSION HELPERS ================= */
+
+        function getUserId() {
+            console.log("--localStorage------", localStorage.getItem("user_id"))
+            console.log("--localStorage------", localStorage.getItem("user_name"))
+            return localStorage.getItem("user_id");
+        }
+
+        function getUserName() {
+            return localStorage.getItem("user_name");
+        }
+
+        function setUser(user) {
+            localStorage.setItem("user_id", user.user_id);
+            localStorage.setItem("user_name", user.name);
+        }
+
+        /* ================= NAME POPUP HANDLING ================= */
+
+        $(document).ready(function () {
+
+            // 🔥 First time user → popup
+            if (!getUserId()) {
+                $("#nameModal").show();
+            }
+
+            // Save name
+            $("#saveNameBtn").click(function () {
+                const name = $("#userNameInput").val().trim();
+                if (!name) {
+                    alert("❌ नाम डालना जरूरी है");
+                    return;
+                }
+
+                $.ajax({
+                    url: "/api/user",
+                    method: "POST",
+                    contentType: "application/json",
+                    data: JSON.stringify({ name }),
+                    success: function (res) {
+                        setUser(res);
+                        $("#nameModal").fadeOut();
+                    },
+                    error: function () {
+                        alert("❌ User save नहीं हुआ");
+                    }
+                });
+            });
+        });
+    </script>
+    <script>
+        /* ================= SAVE USER ANSWER (FUTURE USE) ================= */
+
+        function saveUserAnswer(q, selectedIndex, isCorrect) {
+            console.log("getUserId", getUserId);
+
+            if (!getUserId()) return;
+
+            $.ajax({
+                url: "/api/user-answer",
+                method: "POST",
+                contentType: "application/json",
+                data: JSON.stringify({
+                    user_id: getUserId(),
+                    exam_name: $("#paper_categoryFilter option:selected").text(),
+                    question_id: q._id,
+                    subject: q.subject,
+                    topic: q.topic,
+                    selected_option: selectedIndex,
+                    is_correct: isCorrect
+                })
+            });
+        }
+    </script>
+
 </body>
 
 </html>
