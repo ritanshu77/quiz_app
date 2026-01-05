@@ -6,7 +6,6 @@ const path = require('path');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-
 // Middleware
 app.use(cors());
 app.use(express.json());
@@ -59,6 +58,36 @@ const userSchema = new mongoose.Schema({
 });
 
 const User = mongoose.model('User', userSchema);
+
+// 🔐 Device / Login Info Schema (UPDATED)
+const logInfoSchema = new mongoose.Schema({
+    user_id: { type: String, default: 'guest' },
+
+    userAgent: String,
+    platform: String,
+    language: String,
+
+    screenWidth: Number,
+    screenHeight: Number,
+    isMobile: Boolean,
+
+    timezone: String,
+    referrer: String,
+    page: String,
+
+    ip: String,
+
+    // 🔥 Sirf time store hoga (Indian format)
+    visit_times: [
+        {
+            type: String   // e.g. "05-01-2026 05:42:10 PM"
+        }
+    ],
+
+    created_at: { type: Date, default: Date.now }
+});
+
+const LogInfo = mongoose.model('LogInfo', logInfoSchema);
 
 // Sample Rajasthan Computer Instructor Questions (Auto-insert if empty)
 async function seedData() {
@@ -298,8 +327,81 @@ app.post('/api/questions', async (req, res) => {
         res.status(400).json({ success: false, error: error.message });
     }
 });
+function getIndianTime() {
+    return new Date().toLocaleString('en-IN', {
+        timeZone: 'Asia/Kolkata',
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: true
+    });
+}
+// 🔥 Device visit tracking API (NO duplicate logs)
+app.post('/api/device-info', async (req, res) => {
+    try {
+        const ip =
+            req.headers['x-forwarded-for']?.split(',')[0] ||
+            req.socket.remoteAddress ||
+            '';
 
+        const {
+            user_id = 'guest',
+            userAgent,
+            platform,
+            language,
+            screenWidth,
+            screenHeight,
+            isMobile,
+            timezone,
+            referrer,
+            page
+        } = req.body;
 
+        const visitTime = getIndianTime();
+
+        // 🔑 Device uniqueness logic
+        const filter = {
+            userAgent,
+            ip,
+            screenWidth,
+            screenHeight
+        };
+
+        const update = {
+            $setOnInsert: {
+                user_id,
+                userAgent,
+                platform,
+                language,
+                screenWidth,
+                screenHeight,
+                isMobile,
+                timezone,
+                referrer,
+                page,
+                ip,
+                created_at: new Date()
+            },
+            $push: {
+                visit_times: visitTime
+            }
+        };
+
+        await LogInfo.findOneAndUpdate(
+            filter,
+            update,
+            { upsert: true, new: true }
+        );
+
+        res.json({ success: true, message: 'Visit time logged' });
+    } catch (error) {
+        console.error('❌ Device info API error:', error);
+        res.status(500).json({ success: false });
+    }
+});
 
 // Seed data on startup
 // seedData();

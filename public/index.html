@@ -586,6 +586,40 @@
             loadCurrentQuestion();
         }
     </script>
+    //device info 
+    <script>
+    function sendDeviceInfo() {
+        const deviceInfo = {
+            userAgent: navigator.userAgent,
+            platform: navigator.platform,
+            language: navigator.language,
+            screenWidth: window.screen.width,
+            screenHeight: window.screen.height,
+            isMobile: /Mobi|Android/i.test(navigator.userAgent),
+            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+            referrer: document.referrer || "direct",
+            page: window.location.pathname,
+        };
+
+        $.ajax({
+            url: "/api/device-info",
+            method: "POST",
+            contentType: "application/json",
+            data: JSON.stringify(deviceInfo),
+            success: function () {
+                console.log("✅ Device info sent");
+            },
+            error: function () {
+                console.log("❌ Failed to send device info");
+            }
+        });
+    }
+
+    // Page load hote hi call
+    $(document).ready(function () {
+        sendDeviceInfo();
+    });
+</script>
 </body>
 
 </html>
